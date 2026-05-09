@@ -35,10 +35,10 @@ if uploaded_file:
 
         for page in pdf.pages:
 
-    text = page.extract_text()
+            text = page.extract_text()
 
-    if text:
-        document_text += text
+            if text:
+                document_text += text
 
     elif uploaded_file.name.endswith(".docx"):
 
@@ -48,35 +48,3 @@ if uploaded_file:
             document_text += para.text + "\n"
 
     st.success("Đã tải tài liệu")
-
-user_input = st.text_area(
-    "Nhập yêu cầu pháp lý"
-)
-
-if st.button("Phân tích"):
-
-    prompt = f"""
-    Bạn là chuyên gia pháp lý lao động tại Việt Nam.
-
-    Tài liệu:
-    {document_text}
-
-    Yêu cầu:
-    {user_input}
-
-    Hãy:
-    - phân tích rủi ro
-    - tìm điều khoản bất lợi
-    - đề xuất chỉnh sửa
-    - trả lời dễ hiểu
-    """
-if not user_input:
-    st.warning("Vui lòng nhập yêu cầu")
-    st.stop()
-
-if not document_text:
-    st.warning("Không đọc được nội dung file")
-    st.stop()
-    response = model.generate_content(prompt)
-
-    st.write(response.text)
