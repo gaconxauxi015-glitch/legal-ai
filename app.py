@@ -68,7 +68,7 @@ if uploaded_file:
             st.image(image, caption="Ảnh đã tải lên")
 
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+              model="gemini-1.5-flash-latest",
                 contents=[
                     image,
                     "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
@@ -120,7 +120,7 @@ Hãy:
 
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-latest",
                 contents=prompt
             )
 
