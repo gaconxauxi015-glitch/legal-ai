@@ -48,3 +48,9 @@ if uploaded_file:
             document_text += para.text + "\n"
 
     st.success("Đã tải tài liệu")
+
+user_input = st.text_area(
+    "Nhập yêu cầu pháp lý"
+)
+
+if st.button("Phân tích"):
