@@ -14,26 +14,28 @@ import os
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
-    st.error("Thiếu GEMINI_API_KEY")
+    st.error("❌ Missing GEMINI_API_KEY")
     st.stop()
 
 # =========================
-# CALL GEMINI (REST API - ỔN ĐỊNH)
+# CALL GEMINI (REST)
 # =========================
-def ask_gemini(prompt, image=None):
+def call_gemini(prompt, image=None):
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
     parts = [{"text": prompt}]
 
+    # nếu có ảnh
     if image:
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        img_b64 = base64.b64encode(buffer.getvalue()).decode()
 
         parts.append({
             "inline_data": {
                 "mime_type": "image/png",
-                "data": img_base64
+                "data": img_b64
             }
         })
 
@@ -46,17 +48,22 @@ def ask_gemini(prompt, image=None):
     }
 
     res = requests.post(url, json=payload)
+
     return res.json()
 
 # =========================
 # UI
 # =========================
-st.title("⚖️ Legal AI (Stable Version)")
-st.write("Không lỗi SDK - chạy ổn định")
+st.title("⚖️ Legal AI (REST API VERSION)")
+st.write("Bản không SDK – không lỗi 404")
 
-file = st.file_uploader("Upload file", type=["pdf","docx","txt","xlsx","png","jpg","jpeg"])
+file = st.file_uploader(
+    "Upload file",
+    type=["pdf", "docx", "txt", "xlsx", "png", "jpg", "jpeg"]
+)
 
 text = ""
+image_obj = None
 
 # =========================
 # READ FILE
@@ -80,23 +87,25 @@ if file:
         df = pd.read_excel(file)
         text = df.to_string()
 
-    elif name.endswith((".png","jpg","jpeg")):
-        image = Image.open(file)
-        st.image(image)
+    elif name.endswith((".png", ".jpg", ".jpeg")):
+        image_obj = Image.open(file)
+        st.image(image_obj)
 
-        st.session_state.image = image
-
-    st.success("Loaded file")
+    st.success("File loaded")
 
 # =========================
 # INPUT
 # =========================
-question = st.text_area("Ask")
+question = st.text_area("Nhập yêu cầu pháp lý")
 
 # =========================
 # ANALYZE
 # =========================
-if st.button("Analyze"):
+if st.button("Phân tích"):
+
+    if not text and not image_obj:
+        st.warning("Chưa có file")
+        st.stop()
 
     prompt = f"""
 Bạn là luật sư Việt Nam.
@@ -104,19 +113,27 @@ Bạn là luật sư Việt Nam.
 Tài liệu:
 {text}
 
-Câu hỏi:
+Yêu cầu:
 {question}
 
-Hãy phân tích rõ rủi ro và đề xuất.
+Hãy:
+- phân tích rủi ro pháp lý
+- chỉ ra điều khoản bất lợi
+- đề xuất chỉnh sửa
+- trả lời dễ hiểu
 """
 
-    if hasattr(st.session_state, "image"):
-        result = ask_gemini(prompt, st.session_state.image)
-    else:
-        result = ask_gemini(prompt)
+    with st.spinner("AI đang xử lý..."):
 
-    try:
-        st.subheader("Kết quả")
-        st.write(result["candidates"][0]["content"]["parts"][0]["text"])
-    except:
+        result = call_gemini(prompt, image_obj)
+
+        try:
+            output = result["candidates"][0]["content"]["parts"][0]["text"]
+
+            st.subheader("Kết quả")
+            st.write(output)
+
+        except Exception:
+            st.error("Lỗi API")
+            st.json(result)
         st.error(result)
