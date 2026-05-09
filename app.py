@@ -7,27 +7,36 @@ from PIL import Image
 import pandas as pd
 import os
 
-# API KEY
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+# =========================
+# API KEY SETUP
+# =========================
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    st.error("❌ Chưa set GEMINI_API_KEY trong environment variables")
+    st.stop()
+
+genai.configure(api_key=api_key)
 
 model = genai.GenerativeModel("gemini-1.5-flash")
 
+# =========================
+# UI
+# =========================
 st.set_page_config(page_title="Legal AI Assistant")
 
 st.title("⚖️ Legal AI Assistant")
 st.write("Trợ lý AI pháp lý và hợp đồng")
 
 uploaded_file = st.file_uploader(
-    "Upload hợp đồng PDF hoặc Word",
+    "Upload hợp đồng PDF / Word / Image / Excel / Text",
     type=["pdf", "docx", "png", "jpg", "jpeg", "txt", "xlsx"]
 )
 
 document_text = ""
 
 # =========================
-# HANDLE FILE
+# FILE PROCESSING
 # =========================
 if uploaded_file:
 
@@ -56,17 +65,22 @@ if uploaded_file:
         df = pd.read_excel(uploaded_file)
         document_text = df.to_string()
 
-    # IMAGE
+    # IMAGE (IMPORTANT FIX)
     elif file_name.endswith((".png", ".jpg", ".jpeg")):
         image = Image.open(uploaded_file)
         st.image(image, caption="Ảnh đã tải lên")
 
-        response = model.generate_content([
-            "Hãy đọc toàn bộ nội dung văn bản trong ảnh này. Nếu là hợp đồng hãy phân tích sơ bộ.",
-            image
-        ])
+        try:
+            response = model.generate_content([
+                "Hãy đọc toàn bộ nội dung trong ảnh này. Nếu là hợp đồng thì phân tích sơ bộ.",
+                image.convert("RGB")
+            ])
 
-        document_text = response.text
+            document_text = response.text
+
+        except Exception as e:
+            st.error(f"Lỗi xử lý ảnh: {e}")
+            document_text = ""
 
     st.success("Đã tải tài liệu")
 
@@ -109,6 +123,4 @@ Hãy:
         response = model.generate_content(prompt)
 
     st.subheader("Kết quả phân tích")
-    st.write(response.text)   
-
-    
+    st.write(response.text)
