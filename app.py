@@ -76,10 +76,10 @@ elif file_name.endswith((".png", ".jpg", ".jpeg")):
         image
     ])
 
-    document_text = response.text
+document_text = response.text
 
-    st.write("Nội dung trích xuất:")
-    st.write(document_text)
+st.write("Nội dung trích xuất:")
+st.write(document_text)
 
         document_text = response.text
 
