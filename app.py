@@ -8,12 +8,12 @@ import pandas as pd
 import os
 
 # =========================
-# API KEY SETUP
+# API KEY SAFE SETUP
 # =========================
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("❌ Chưa set GEMINI_API_KEY trong environment variables")
+    st.error("❌ Thiếu GEMINI_API_KEY. Hãy thêm vào Streamlit Secrets hoặc Environment Variables.")
     st.stop()
 
 genai.configure(api_key=api_key)
@@ -26,63 +26,61 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 st.set_page_config(page_title="Legal AI Assistant")
 
 st.title("⚖️ Legal AI Assistant")
-st.write("Trợ lý AI pháp lý và hợp đồng")
+st.write("Trợ lý AI phân tích hợp đồng & pháp lý")
 
 uploaded_file = st.file_uploader(
-    "Upload hợp đồng PDF / Word / Image / Excel / Text",
+    "Upload file",
     type=["pdf", "docx", "png", "jpg", "jpeg", "txt", "xlsx"]
 )
 
 document_text = ""
 
 # =========================
-# FILE PROCESSING
+# READ FILE
 # =========================
 if uploaded_file:
 
     file_name = uploaded_file.name.lower()
 
-    # PDF
-    if file_name.endswith(".pdf"):
-        pdf = PdfReader(uploaded_file)
-        for page in pdf.pages:
-            text = page.extract_text()
-            if text:
-                document_text += text
+    try:
 
-    # DOCX
-    elif file_name.endswith(".docx"):
-        doc = Document(uploaded_file)
-        for para in doc.paragraphs:
-            document_text += para.text + "\n"
+        # PDF
+        if file_name.endswith(".pdf"):
+            pdf = PdfReader(uploaded_file)
+            document_text = "\n".join(
+                [page.extract_text() or "" for page in pdf.pages]
+            )
 
-    # TXT
-    elif file_name.endswith(".txt"):
-        document_text = uploaded_file.read().decode("utf-8")
+        # DOCX
+        elif file_name.endswith(".docx"):
+            doc = Document(uploaded_file)
+            document_text = "\n".join([p.text for p in doc.paragraphs])
 
-    # EXCEL
-    elif file_name.endswith(".xlsx"):
-        df = pd.read_excel(uploaded_file)
-        document_text = df.to_string()
+        # TXT
+        elif file_name.endswith(".txt"):
+            document_text = uploaded_file.read().decode("utf-8")
 
-    # IMAGE (IMPORTANT FIX)
-    elif file_name.endswith((".png", ".jpg", ".jpeg")):
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Ảnh đã tải lên")
+        # EXCEL
+        elif file_name.endswith(".xlsx"):
+            df = pd.read_excel(uploaded_file)
+            document_text = df.to_string()
 
-        try:
-            response = model.generate_content([
-                "Hãy đọc toàn bộ nội dung trong ảnh này. Nếu là hợp đồng thì phân tích sơ bộ.",
-                image.convert("RGB")
+        # IMAGE
+        elif file_name.endswith((".png", ".jpg", ".jpeg")):
+            image = Image.open(uploaded_file).convert("RGB")
+            st.image(image, caption="Ảnh đã tải lên")
+
+            img_result = model.generate_content([
+                "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ.",
+                image
             ])
 
-            document_text = response.text
+            document_text = img_result.text
 
-        except Exception as e:
-            st.error(f"Lỗi xử lý ảnh: {e}")
-            document_text = ""
+        st.success("✔ Đọc file thành công")
 
-    st.success("Đã tải tài liệu")
+    except Exception as e:
+        st.error(f"❌ Lỗi đọc file: {e}")
 
 # =========================
 # USER INPUT
@@ -90,20 +88,20 @@ if uploaded_file:
 user_input = st.text_area("Nhập yêu cầu pháp lý")
 
 # =========================
-# ANALYZE BUTTON
+# ANALYZE
 # =========================
 if st.button("Phân tích"):
+
+    if not document_text:
+        st.warning("Không có nội dung file")
+        st.stop()
 
     if not user_input:
         st.warning("Vui lòng nhập yêu cầu")
         st.stop()
 
-    if not document_text:
-        st.warning("Không đọc được nội dung file")
-        st.stop()
-
     prompt = f"""
-Bạn là chuyên gia pháp lý lao động tại Việt Nam.
+Bạn là chuyên gia pháp lý tại Việt Nam.
 
 Tài liệu:
 {document_text}
@@ -113,14 +111,17 @@ Yêu cầu:
 
 Hãy:
 - phân tích rủi ro pháp lý
-- tìm điều khoản bất lợi
+- chỉ ra điều khoản bất lợi
 - đề xuất chỉnh sửa
-- trả lời dễ hiểu
-- trình bày rõ ràng theo từng mục
+- trả lời rõ ràng, dễ hiểu
 """
 
     with st.spinner("AI đang phân tích..."):
-        response = model.generate_content(prompt)
 
-    st.subheader("Kết quả phân tích")
-    st.write(response.text)
+        try:
+            response = model.generate_content(prompt)
+            st.subheader("Kết quả phân tích")
+            st.write(response.text)
+
+        except Exception as e:
+            st.error(f"Lỗi AI: {e}")
