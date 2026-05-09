@@ -1,5 +1,5 @@
-google-genai
 streamlit
+google-genai>=0.5.0
 pypdf2
 python-docx
 pandas
