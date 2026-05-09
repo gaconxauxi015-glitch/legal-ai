@@ -66,7 +66,6 @@ if uploaded_file:
         document_text = df.to_string()
 
     # IMAGE
-
 elif file_name.endswith((".png", ".jpg", ".jpeg")):
 
     image = Image.open(uploaded_file)
