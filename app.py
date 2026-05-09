@@ -6,14 +6,15 @@ from docx import Document
 from PIL import Image
 import pandas as pd
 import os
+import io
 
 # =========================
-# API KEY SAFE SETUP
+# API KEY SETUP (SAFE)
 # =========================
 api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("❌ Thiếu GEMINI_API_KEY. Hãy thêm vào Streamlit Secrets hoặc Environment Variables.")
+    st.error("❌ Thiếu GEMINI_API_KEY (set trong Streamlit Secrets hoặc Environment Variables)")
     st.stop()
 
 genai.configure(api_key=api_key)
@@ -26,7 +27,7 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 st.set_page_config(page_title="Legal AI Assistant")
 
 st.title("⚖️ Legal AI Assistant")
-st.write("Trợ lý AI phân tích hợp đồng & pháp lý")
+st.write("Phân tích hợp đồng & tài liệu pháp lý bằng AI")
 
 uploaded_file = st.file_uploader(
     "Upload file",
@@ -36,7 +37,7 @@ uploaded_file = st.file_uploader(
 document_text = ""
 
 # =========================
-# READ FILE
+# PROCESS FILE
 # =========================
 if uploaded_file:
 
@@ -65,22 +66,31 @@ if uploaded_file:
             df = pd.read_excel(uploaded_file)
             document_text = df.to_string()
 
-        # IMAGE
+        # IMAGE (FIX CHUẨN GEMINI)
         elif file_name.endswith((".png", ".jpg", ".jpeg")):
+
             image = Image.open(uploaded_file).convert("RGB")
             st.image(image, caption="Ảnh đã tải lên")
 
-            img_result = model.generate_content([
-                "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ.",
-                image
+            # convert image → bytes (FIX QUAN TRỌNG)
+            img_bytes = io.BytesIO()
+            image.save(img_bytes, format="PNG")
+            img_bytes = img_bytes.getvalue()
+
+            response = model.generate_content([
+                {
+                    "mime_type": "image/png",
+                    "data": img_bytes
+                },
+                "Hãy đọc toàn bộ nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
             ])
 
-            document_text = img_result.text
+            document_text = response.text
 
-        st.success("✔ Đọc file thành công")
+        st.success("✔ Đã đọc file thành công")
 
     except Exception as e:
-        st.error(f"❌ Lỗi đọc file: {e}")
+        st.error(f"❌ Lỗi xử lý file: {e}")
 
 # =========================
 # USER INPUT
@@ -93,11 +103,11 @@ user_input = st.text_area("Nhập yêu cầu pháp lý")
 if st.button("Phân tích"):
 
     if not document_text:
-        st.warning("Không có nội dung file")
+        st.warning("❌ Không có nội dung file")
         st.stop()
 
     if not user_input:
-        st.warning("Vui lòng nhập yêu cầu")
+        st.warning("❌ Vui lòng nhập yêu cầu")
         st.stop()
 
     prompt = f"""
@@ -113,15 +123,15 @@ Hãy:
 - phân tích rủi ro pháp lý
 - chỉ ra điều khoản bất lợi
 - đề xuất chỉnh sửa
-- trả lời rõ ràng, dễ hiểu
+- trình bày rõ ràng, dễ hiểu
 """
 
     with st.spinner("AI đang phân tích..."):
 
         try:
-            response = model.generate_content(prompt)
+            result = model.generate_content(prompt)
             st.subheader("Kết quả phân tích")
-            st.write(response.text)
+            st.write(result.text)
 
         except Exception as e:
             st.error(f"Lỗi AI: {e}")
