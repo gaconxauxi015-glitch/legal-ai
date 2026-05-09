@@ -6,8 +6,10 @@ from docx import Document
 import os
 
 # API KEY
+import os
+
 genai.configure(
-    api_key="DAN_API_KEY_CUA_BAN"
+    api_key=os.getenv("GEMINI_API_KEY")
 )
 
 model = genai.GenerativeModel("gemini-1.5-flash")
