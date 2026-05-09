@@ -1,25 +1,23 @@
 
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from PyPDF2 import PdfReader
 from docx import Document
 from PIL import Image
 import pandas as pd
-import os
 import io
+import os
 
 # =========================
-# API KEY SETUP (SAFE)
+# API KEY
 # =========================
 api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("❌ Thiếu GEMINI_API_KEY (set trong Streamlit Secrets hoặc Environment Variables)")
+    st.error("❌ Thiếu GEMINI_API_KEY trong Streamlit Secrets hoặc Environment Variables")
     st.stop()
 
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel("gemini-1.5-pro")
+client = genai.Client(api_key=api_key)
 
 # =========================
 # UI
@@ -30,8 +28,8 @@ st.title("⚖️ Legal AI Assistant")
 st.write("Phân tích hợp đồng & tài liệu pháp lý bằng AI")
 
 uploaded_file = st.file_uploader(
-    "Upload file",
-    type=["pdf", "docx", "png", "jpg", "jpeg", "txt", "xlsx"]
+    "Upload file (PDF / DOCX / TXT / XLSX / IMAGE)",
+    type=["pdf", "docx", "txt", "xlsx", "png", "jpg", "jpeg"]
 )
 
 document_text = ""
@@ -69,25 +67,20 @@ if uploaded_file:
         # IMAGE (FIX CHUẨN GEMINI)
         elif file_name.endswith((".png", ".jpg", ".jpeg")):
 
-            image = Image.open(uploaded_file).convert("RGB")
+            image = Image.open(uploaded_file)
             st.image(image, caption="Ảnh đã tải lên")
 
-            # convert image → bytes (FIX QUAN TRỌNG)
-            img_bytes = io.BytesIO()
-            image.save(img_bytes, format="PNG")
-            img_bytes = img_bytes.getvalue()
-
-            response = model.generate_content([
-                {
-                    "mime_type": "image/png",
-                    "data": img_bytes
-                },
-                "Hãy đọc toàn bộ nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
-            ])
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=[
+                    image,
+                    "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
+                ]
+            )
 
             document_text = response.text
 
-        st.success("✔ Đã đọc file thành công")
+        st.success("✔ Đọc file thành công")
 
     except Exception as e:
         st.error(f"❌ Lỗi xử lý file: {e}")
@@ -129,9 +122,14 @@ Hãy:
     with st.spinner("AI đang phân tích..."):
 
         try:
-            result = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=prompt
+            )
+
             st.subheader("Kết quả phân tích")
-            st.write(result.text)
+            st.write(response.text)
 
         except Exception as e:
+            st.error(f"Lỗi AI: {e}")
             st.error(f"Lỗi AI: {e}")
