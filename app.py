@@ -72,10 +72,12 @@ if uploaded_file:
 
     st.image(image, caption="Ảnh đã tải lên")
 
-    response = model.generate_content([
-        "Hãy đọc toàn bộ nội dung văn bản trong ảnh này. Nếu là hợp đồng hãy phân tích sơ bộ.",
-        image
-    ])
+    response = model.generate_content(
+        [
+            "Hãy đọc toàn bộ nội dung văn bản trong ảnh này. Nếu là hợp đồng hãy phân tích sơ bộ.",
+            image
+        ]
+    )
 
     document_text = response.text
 
