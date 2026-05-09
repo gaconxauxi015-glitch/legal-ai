@@ -54,3 +54,31 @@ user_input = st.text_area(
 )
 
 if st.button("Phân tích"):
+
+    if not user_input:
+        st.warning("Vui lòng nhập yêu cầu")
+        st.stop()
+
+    if not document_text:
+        st.warning("Không đọc được nội dung file")
+        st.stop()
+
+    prompt = f"""
+    Bạn là chuyên gia pháp lý lao động tại Việt Nam.
+
+    Tài liệu:
+    {document_text}
+
+    Yêu cầu:
+    {user_input}
+
+    Hãy:
+    - phân tích rủi ro
+    - tìm điều khoản bất lợi
+    - đề xuất chỉnh sửa
+    - trả lời dễ hiểu
+    """
+
+    response = model.generate_content(prompt)
+
+    st.write(response.text)
