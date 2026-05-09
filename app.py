@@ -68,11 +68,19 @@ if uploaded_file:
     # IMAGE
     elif file_name.endswith((".png", ".jpg", ".jpeg")):
 
-        image = Image.open(uploaded_file)
+    image = Image.open(uploaded_file)
 
-        response = model.generate_content([
-            "Hãy đọc và trích xuất toàn bộ nội dung văn bản trong ảnh này",
-            image
+    st.image(image, caption="Ảnh đã tải lên")
+
+    response = model.generate_content([
+        "Hãy đọc toàn bộ nội dung văn bản trong ảnh này. Nếu là hợp đồng hãy phân tích sơ bộ.",
+        image
+    ])
+
+    document_text = response.text
+
+    st.write("Nội dung trích xuất:")
+    st.write(document_text)
         ])
 
         document_text = response.text
