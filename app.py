@@ -32,7 +32,11 @@ if uploaded_file:
         pdf = PdfReader(uploaded_file)
 
         for page in pdf.pages:
-            document_text += page.extract_text()
+
+    text = page.extract_text()
+
+    if text:
+        document_text += text
 
     elif uploaded_file.name.endswith(".docx"):
 
@@ -64,7 +68,13 @@ if st.button("Phân tích"):
     - đề xuất chỉnh sửa
     - trả lời dễ hiểu
     """
+if not user_input:
+    st.warning("Vui lòng nhập yêu cầu")
+    st.stop()
 
+if not document_text:
+    st.warning("Không đọc được nội dung file")
+    st.stop()
     response = model.generate_content(prompt)
 
     st.write(response.text)
