@@ -1,4 +1,3 @@
-
 import streamlit as st
 from google import genai
 from PyPDF2 import PdfReader
@@ -13,9 +12,10 @@ import os
 api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("❌ Thiếu GEMINI_API_KEY trong Streamlit Secrets hoặc Environment Variables")
+    st.error("❌ Missing GEMINI_API_KEY")
     st.stop()
 
+# IMPORTANT: NEW SDK CLIENT
 client = genai.Client(api_key=api_key)
 
 # =========================
@@ -24,108 +24,98 @@ client = genai.Client(api_key=api_key)
 st.set_page_config(page_title="Legal AI Assistant")
 
 st.title("⚖️ Legal AI Assistant")
-st.write("Phân tích hợp đồng & tài liệu pháp lý bằng AI")
 
 uploaded_file = st.file_uploader(
-    "Upload file (PDF / DOCX / TXT / XLSX / IMAGE)",
+    "Upload file",
     type=["pdf", "docx", "txt", "xlsx", "png", "jpg", "jpeg"]
 )
 
 document_text = ""
 
 # =========================
-# READ FILE
+# FILE READER
 # =========================
 if uploaded_file:
 
-    file_name = uploaded_file.name.lower()
+    name = uploaded_file.name.lower()
 
     try:
 
-        # PDF
-        if file_name.endswith(".pdf"):
+        if name.endswith(".pdf"):
             pdf = PdfReader(uploaded_file)
             document_text = "\n".join([p.extract_text() or "" for p in pdf.pages])
 
-        # DOCX
-        elif file_name.endswith(".docx"):
+        elif name.endswith(".docx"):
             doc = Document(uploaded_file)
             document_text = "\n".join([p.text for p in doc.paragraphs])
 
-        # TXT
-        elif file_name.endswith(".txt"):
-            document_text = uploaded_file.read().decode("utf-8")
+        elif name.endswith(".txt"):
+            document_text = uploaded_file.read().decode()
 
-        # EXCEL
-        elif file_name.endswith(".xlsx"):
+        elif name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
             document_text = df.to_string()
 
-        # IMAGE (FIX CHUẨN GEMINI SDK MỚI)
-        elif file_name.endswith((".png", ".jpg", ".jpeg")):
+        elif name.endswith((".png", ".jpg", ".jpeg")):
 
             image = Image.open(uploaded_file)
-            st.image(image, caption="Ảnh đã tải lên")
+            st.image(image)
 
-            response = client.models.generate_content(
-              model="gemini-1.5-flash-latest",
+            res = client.models.generate_content(
+                model="gemini-2.0-flash",
                 contents=[
                     image,
-                    "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
+                    "Extract and analyze this legal document."
                 ]
             )
 
-            document_text = response.text
+            document_text = res.text
 
-        st.success("✔ Đọc file thành công")
+        st.success("File loaded")
 
     except Exception as e:
-        st.error(f"❌ Lỗi xử lý file: {e}")
+        st.error(f"File error: {e}")
 
 # =========================
 # USER INPUT
 # =========================
-user_input = st.text_area("Nhập yêu cầu pháp lý")
+question = st.text_area("Ask legal question")
 
 # =========================
-# ANALYZE
+# AI ANALYSIS
 # =========================
-if st.button("Phân tích"):
+if st.button("Analyze"):
 
     if not document_text:
-        st.warning("❌ Không có nội dung file")
-        st.stop()
-
-    if not user_input:
-        st.warning("❌ Vui lòng nhập yêu cầu")
+        st.warning("No file content")
         st.stop()
 
     prompt = f"""
-Bạn là chuyên gia pháp lý tại Việt Nam.
+You are a legal expert in Vietnam.
 
-Tài liệu:
+DOCUMENT:
 {document_text}
 
-Yêu cầu:
-{user_input}
+QUESTION:
+{question}
 
-Hãy:
-- phân tích rủi ro pháp lý
-- chỉ ra điều khoản bất lợi
-- đề xuất chỉnh sửa
-- trình bày rõ ràng, dễ hiểu
+Analyze:
+- risks
+- unfair clauses
+- suggestions
+- clear explanation
 """
 
-    with st.spinner("AI đang phân tích..."):
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
 
-        try:
-            response = client.models.generate_content(
-                model="gemini-1.5-flash-latest",
-                contents=prompt
-            )
+        st.subheader("Result")
+        st.write(response.text)
 
-            st.subheader("Kết quả phân tích")
-            st.write(response.text)
-
+    except Exception as e:
+        st.error(f"AI error: {e}")
         except Exception as e:
             st.error(f"Lỗi AI: {e}")
