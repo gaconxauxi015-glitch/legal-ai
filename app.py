@@ -5,7 +5,6 @@ from PyPDF2 import PdfReader
 from docx import Document
 from PIL import Image
 import pandas as pd
-import io
 import os
 
 # =========================
@@ -35,7 +34,7 @@ uploaded_file = st.file_uploader(
 document_text = ""
 
 # =========================
-# PROCESS FILE
+# READ FILE
 # =========================
 if uploaded_file:
 
@@ -46,9 +45,7 @@ if uploaded_file:
         # PDF
         if file_name.endswith(".pdf"):
             pdf = PdfReader(uploaded_file)
-            document_text = "\n".join(
-                [page.extract_text() or "" for page in pdf.pages]
-            )
+            document_text = "\n".join([p.extract_text() or "" for p in pdf.pages])
 
         # DOCX
         elif file_name.endswith(".docx"):
@@ -64,14 +61,14 @@ if uploaded_file:
             df = pd.read_excel(uploaded_file)
             document_text = df.to_string()
 
-        # IMAGE (FIX CHUẨN GEMINI)
+        # IMAGE (FIX CHUẨN GEMINI SDK MỚI)
         elif file_name.endswith((".png", ".jpg", ".jpeg")):
 
             image = Image.open(uploaded_file)
             st.image(image, caption="Ảnh đã tải lên")
 
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-001",
                 contents=[
                     image,
                     "Đọc nội dung trong ảnh. Nếu là hợp đồng thì phân tích sơ bộ."
@@ -123,7 +120,7 @@ Hãy:
 
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-001",
                 contents=prompt
             )
 
@@ -131,5 +128,4 @@ Hãy:
             st.write(response.text)
 
         except Exception as e:
-            st.error(f"Lỗi AI: {e}")
             st.error(f"Lỗi AI: {e}")
