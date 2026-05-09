@@ -1,5 +1,5 @@
-streamlit
-google-genai>=0.5.0
+streamlit==1.36.0
+google-genai>=0.6.0
 pypdf2
 python-docx
 pandas
